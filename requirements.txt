@@ -1,0 +1,6 @@
+streamlit
+langchain
+together
+python-dotenv
+whisper
+gradio
