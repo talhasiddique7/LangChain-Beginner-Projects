@@ -7,10 +7,9 @@ from langchain_community.vectorstores import FAISS
 from langchain.llms import Together
 from langchain.chains import RetrievalQA
 
-# Load API key
+# Load environment variables
 load_dotenv()
-TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
-
+# Streamlit UI Setup
 st.set_page_config(page_title="Chat with your PDF", layout="wide")
 st.title("📄 Chat with Your PDF - LangChain + Together API")
 
@@ -18,18 +17,34 @@ st.title("📄 Chat with Your PDF - LangChain + Together API")
 uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
 
 if uploaded_file:
+    # Save uploaded PDF to a temp file
     with open("temp.pdf", "wb") as f:
         f.write(uploaded_file.read())
 
-    # Load and split PDF
-    loader = PyPDFLoader("temp.pdf")
-    pages = loader.load_and_split()
+    # Generate a unique vectorstore name based on PDF file name
+    file_name = uploaded_file.name.replace(".pdf", "")
+    vectorstore_path = f"vectorstores/{file_name}"
 
-    st.success(f"Loaded {len(pages)} pages from the PDF.")
+    # Create the vectorstore directory if it doesn't exist
+    os.makedirs("vectorstores", exist_ok=True)
 
-    # Create embeddings
-    embeddings = HuggingFaceEmbeddings()
-    db = FAISS.from_documents(pages, embeddings)
+    if os.path.exists(vectorstore_path):
+        # ✅ Load existing FAISS index
+        db = FAISS.load_local(vectorstore_path, HuggingFaceEmbeddings(), allow_dangerous_deserialization=True)
+        st.success("✅ Loaded existing vectorstore from disk.")
+    else:
+        #  Load PDF and create new embeddings
+        loader = PyPDFLoader("temp.pdf")
+        pages = loader.load_and_split()
+        st.success(f"🔄 Loaded {len(pages)} pages from the PDF.")
+
+        # Create embeddings
+        embeddings = HuggingFaceEmbeddings()
+        db = FAISS.from_documents(pages, embeddings)
+
+        # Save new vectorstore to disk
+        db.save_local(vectorstore_path)
+        st.success("✅ Vectorstore created and saved locally.")
 
     # Set up Together LLM
     llm = Together(
@@ -38,14 +53,14 @@ if uploaded_file:
         max_tokens=512,
     )
 
-    # Set up QA chain
+    # Setup QA chain
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
         retriever=db.as_retriever(),
         return_source_documents=True
     )
 
-    # Chat interface
+    # Chat UI
     query = st.text_input("Ask a question about the PDF:")
 
     if query:
