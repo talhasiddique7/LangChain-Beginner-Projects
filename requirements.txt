@@ -4,3 +4,7 @@ together
 python-dotenv
 whisper
 gradio
+langchain-community
+pypdf
+sentence-transformers
+faiss-cpu
