@@ -9,3 +9,5 @@ pypdf
 sentence-transformers
 faiss-cpu
 youtube-transcript-api
+langchain-core
+tavily-python
